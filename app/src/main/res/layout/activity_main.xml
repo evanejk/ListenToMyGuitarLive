@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:gravity="center_horizontal">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="USB Guitar &amp; Metronome Test"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:layout_marginBottom="24dp" />
+
+    <TextView
+        android:id="@+id/tvDeviceStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Scanning for USB Audio Devices..."
+        android:textSize="14sp"
+        android:padding="12dp"
+        android:background="#EEEEEE"
+        android:layout_marginBottom="24dp" />
+
+    <ToggleButton
+        android:id="@+id/btnToggleAudio"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:textOn="Stop Live Audio &amp; Metronome"
+        android:textOff="Start Live Audio &amp; Metronome"
+        android:textSize="16sp"
+        android:layout_marginBottom="32dp" />
+
+    <ToggleButton
+        android:id="@+id/btnToggleRecord"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:textOn="Stop Recording Guitar"
+        android:textOff="Record Clean Guitar (WAV)"
+        android:textSize="15sp"
+        android:enabled="false"
+        android:layout_marginBottom="24dp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Metronome Tempo (BPM): 120"
+        android:id="@+id/tvBpmLabel"
+        android:layout_marginBottom="8dp" />
+
+    <SeekBar
+        android:id="@+id/seekBarBpm"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:max="160"
+        android:progress="60"
+        android:layout_marginBottom="16dp" />
+
+    <TextView
+        android:id="@+id/tvRecordStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text=""
+        android:textSize="13sp"
+        android:gravity="center"
+        android:textColor="#00796B" />
+
+    <ToggleButton
+        android:id="@+id/btnToggleMetronome"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textOn="Metronome: On"
+        android:textOff="Metronome: Off" />
+
+</LinearLayout>
