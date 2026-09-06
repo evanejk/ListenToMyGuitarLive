@@ -4,11 +4,13 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.*
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.ToggleButton
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -24,6 +26,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvBpmLabel: TextView
     private lateinit var tvRecordStatus: TextView
     private lateinit var btnToggleMetronome: ToggleButton
+    private lateinit var btnToggleBackground: ToggleButton
+
 
     private var isRecording = false
 
@@ -44,6 +48,7 @@ class MainActivity : AppCompatActivity() {
         tvBpmLabel = findViewById(R.id.tvBpmLabel)
         tvRecordStatus = findViewById(R.id.tvRecordStatus)
         btnToggleMetronome = findViewById(R.id.btnToggleMetronome)
+        btnToggleBackground = findViewById(R.id.btnToggleBackground)
 
         checkPermissions()
         updateAudioDeviceList()
@@ -63,7 +68,13 @@ class MainActivity : AppCompatActivity() {
             isMetronomeOn = isChecked
             AudioService.instance?.setMetronomeBoolean(isMetronomeOn);
         }
-
+        btnToggleBackground.setOnCheckedChangeListener { _, isChecked ->
+            if(isChecked){
+                pickAudioFile.launch("audio/*")
+            }else{
+                BackingTrackPlayer.getInstance(this).stop()
+            }
+        }
         btnToggleAudio.setOnCheckedChangeListener { _, isChecked ->
             val serviceIntent = Intent(this, AudioService::class.java)
             if (isChecked) {
@@ -98,7 +109,16 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-
+    // 1. Register the picker launcher
+    private val pickAudioFile = registerForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        // This callback runs when the user selects a file or cancels
+        if (uri != null) {
+            // Pass the selected file URI directly to your Singleton player
+            BackingTrackPlayer.getInstance(this).play(uri)
+        }
+    }
 
     private fun checkPermissions() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {

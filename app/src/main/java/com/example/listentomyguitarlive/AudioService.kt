@@ -124,7 +124,7 @@ class AudioService : Service() {
             val bufferSize = framesPerBuffer * 2 * 2 // frames * channels * bytes per sample
             // 1. Setup AudioRecord for USB Guitar Input
             val audioRecord = AudioRecord.Builder()
-                .setAudioSource(MediaRecorder.AudioSource.MIC)
+                .setAudioSource(MediaRecorder.AudioSource.UNPROCESSED)
                 .setAudioFormat(
                     AudioFormat.Builder()
                     .setSampleRate(sampleRate)
@@ -182,6 +182,21 @@ class AudioService : Service() {
             }
 
             audioRecord.startRecording()
+
+// For Android 11 (API 30) and below:
+            @Suppress("DEPRECATION")
+            audioManager.isSpeakerphoneOn = true
+
+// For Android 12 (API 31) and above:
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val speakerDevice = audioManager.availableCommunicationDevices.find {
+                    it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
+                }
+                if (speakerDevice != null) {
+                    audioManager.setCommunicationDevice(speakerDevice)
+                }
+            }
+
             audioTrack.play()
 
 
