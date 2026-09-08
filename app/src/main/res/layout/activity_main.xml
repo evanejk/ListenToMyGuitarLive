@@ -1,87 +1,29 @@
-<?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="24dp"
-    android:gravity="center_horizontal">
+    android:padding="24dp">
 
-    <TextView
-        android:layout_width="match_parent"
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/nav_host_fragment"
+        android:name="androidx.navigation.fragment.NavHostFragment"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:defaultNavHost="true"
+        app:navGraph="@navigation/nav_graph"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/bottom_navigation"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottom_navigation"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="USB Guitar &amp; Metronome Test"
-        android:textSize="22sp"
-        android:textStyle="bold"
-        android:gravity="center"
-        android:layout_marginBottom="24dp" />
+        app:menu="@menu/menu"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
-    <TextView
-        android:id="@+id/tvDeviceStatus"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Scanning for USB Audio Devices..."
-        android:textSize="14sp"
-        android:padding="12dp"
-        android:background="#EEEEEE"
-        android:layout_marginBottom="24dp" />
-
-    <ToggleButton
-        android:id="@+id/btnToggleAudio"
-        android:layout_width="match_parent"
-        android:layout_height="60dp"
-        android:textOn="Stop Live Audio"
-        android:textOff="Start Live Audio"
-        android:textSize="16sp"
-        android:layout_marginBottom="32dp" />
-
-    <ToggleButton
-        android:id="@+id/btnToggleRecord"
-        android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:textOn="Stop Recording Guitar"
-        android:textOff="Record Clean Guitar (WAV)"
-        android:textSize="15sp"
-        android:enabled="false"
-        android:layout_marginBottom="24dp" />
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Metronome Tempo (BPM): 120"
-        android:id="@+id/tvBpmLabel"
-        android:layout_marginBottom="8dp" />
-
-    <SeekBar
-        android:id="@+id/seekBarBpm"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:max="160"
-        android:progress="60"
-        android:layout_marginBottom="16dp" />
-
-    <TextView
-        android:id="@+id/tvRecordStatus"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text=""
-        android:textSize="13sp"
-        android:gravity="center"
-        android:textColor="#00796B" />
-
-    <ToggleButton
-        android:id="@+id/btnToggleMetronome"
-        android:layout_width="match_parent"
-        android:layout_height="60dp"
-        android:textOn="Metronome: On"
-        android:textOff="Metronome: Off" />
-
-    <ToggleButton
-        android:id="@+id/btnToggleBackground"
-        android:layout_width="match_parent"
-        android:layout_height="60dp"
-        android:textOn="Stop Background Track"
-        android:textOff="Start Background Track"
-        android:textSize="16sp"
-        android:layout_marginBottom="32dp" />
-
-</LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

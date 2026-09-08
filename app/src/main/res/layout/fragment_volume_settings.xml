@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".VolumeSettingsFragment">
+
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="24dp"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Guitar Volume"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <SeekBar
+            android:id="@+id/seekBarGuitar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="24dp"
+            android:max="100"
+            android:progress="100" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Backing Track Volume"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <SeekBar
+            android:id="@+id/seekBarBacking"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:max="100"
+            android:progress="100" />
+        <Switch
+            android:id="@+id/switchLowpass"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Lowpass"
+            android:layout_marginTop="8dp"/>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Cutoff"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            />
+        <SeekBar
+            android:id="@+id/seekBarCutoff"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:max="1000"
+            android:progress="30" />
+        <Switch
+            android:id="@+id/switchLimiter"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Limiter"
+            android:layout_marginTop="8dp"/>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Threshold"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+        <SeekBar
+            android:id="@+id/seekBarThreshold"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:max="32767"
+            android:progress="22000" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Ceiling"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+        <SeekBar
+            android:id="@+id/seekBarCeiling"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:max="32767"
+            android:progress="32000" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Ratio"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            />
+        <SeekBar
+            android:id="@+id/seekBarRatio"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:max="100"
+            android:progress="20" />
+
+    </LinearLayout>
+</FrameLayout>

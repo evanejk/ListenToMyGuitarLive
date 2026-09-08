@@ -19,7 +19,8 @@
         android:label="Listen To My Guitar"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.AppCompat.Light.DarkActionBar">
+        android:theme="@style/Theme.ListenToMyGuitarLiveMergeMode">
+
         <activity
             android:name=".MainActivity"
             android:exported="true">
@@ -29,11 +30,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
         <service
             android:name=".AudioService"
-            android:foregroundServiceType="microphone"
-            android:exported="false" />
-
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
     </application>
 
 </manifest>

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.ListenToMyGuitarLive" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.ListenToMyGuitarLiveMergeMode" parent="Theme.Material3.DayNight.NoActionBar" />
     <!-- Base application theme. -->
     <style name="Base.Theme.AppCompat.Light.DarkActionBar" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Customize your light theme here. -->

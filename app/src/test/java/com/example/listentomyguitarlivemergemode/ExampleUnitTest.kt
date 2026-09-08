@@ -1,4 +1,4 @@
-package com.example.listentomyguitarlive
+package com.example.listentomyguitarlivemergemode
 
 import org.junit.Test
 
