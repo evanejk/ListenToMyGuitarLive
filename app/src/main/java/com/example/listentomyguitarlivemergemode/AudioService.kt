@@ -35,13 +35,29 @@ import kotlin.math.sin
 
 class AudioService : Service() {
 
-    @Volatile
-    var guitarVolume: Float = 1.0f
-    @Volatile
-    var backingVolume: Float = 1.0f
-    companion object {
-        var instance: AudioService? = null
 
+    companion object {
+        @Volatile
+        private var isRunning = false
+        private var isRecording = false
+        private var audioThread: Thread? = null
+
+        private var recordingOutputStream: OutputStream? = null
+        private var currentWavUri: Uri? = null
+        private var recordedDataLen: Long = 0
+        val byteArray = ByteArray(2)
+
+
+
+
+        private val channelConfigIn = AudioFormat.CHANNEL_IN_MONO
+        private val channelConfigOut = AudioFormat.CHANNEL_OUT_MONO
+        private val audioFormat = AudioFormat.ENCODING_PCM_16BIT
+        var instance: AudioService? = null
+        @Volatile
+        var guitarVolume: Float = 1.0f
+        @Volatile
+        var backingVolume: Float = 1.0f
         @Volatile
         var bpm = 120
         @Volatile
@@ -58,182 +74,160 @@ class AudioService : Service() {
         var seekBarCutoff: Int = 30
         @Volatile
         var useLowpass = false
-    }
+        @Volatile
+        var recordJustGuitar: Boolean = false
+        @Volatile
+        var cachedBackingTrackSamples: ShortArray? = null
+        private var backingTrackIndex = 0
+        private val sampleRate = 44100
 
-
-
-    @Volatile
-    private var isRunning = false
-    private var isRecording = false
-    private var audioThread: Thread? = null
-
-    private var recordingOutputStream: OutputStream? = null
-    private var currentWavUri: Uri? = null
-    private var recordedDataLen: Long = 0
-
-    @Volatile
-    var cachedBackingTrackSamples: ShortArray? = null
-    private var backingTrackIndex = 0
-
-    private val sampleRate = 44100
-    private val channelConfigIn = AudioFormat.CHANNEL_IN_MONO
-    private val channelConfigOut = AudioFormat.CHANNEL_OUT_MONO
-    private val audioFormat = AudioFormat.ENCODING_PCM_16BIT
-    override fun onTaskRemoved(rootIntent: Intent?) {
-        super.onTaskRemoved(rootIntent)
-        stopSelf()
-    }
-    override fun onCreate() {
-        super.onCreate()
-        instance = this
-        startAudioPipeline()
-    }
-    override fun onDestroy() {
-        super.onDestroy()
-        stopAudioPipeline()
-        instance = null
-        isRunning = false
-    }
-
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        startForeground(1, createNotification())
-        if (!isRunning) {
-            isRunning = true
-        }
-        return START_STICKY
-    }
-    fun applyLimiter(sample: Int): Int {
-        val absValue = kotlin.math.abs(sample)
-        if (absValue <= threshold) {
-            return sample
-        }
-        // Simple compression curve above the threshold
-        val excess = absValue - threshold
-        val compressedExcess = excess * ratio // Ratio adjustment above threshold
-        val limited = threshold + compressedExcess.toInt()
-        return if (sample < 0) -limited.coerceAtMost(ceiling) else limited.coerceAtMost(ceiling)
-    }
-    fun setBMP(bpm2: Int){
-        bpm = bpm2
-    }
-    private var lowPassPrevSample = 0.0F
-
-    fun applyLowPass(sample: Int): Int {
-        val dt = 1.0f / sampleRate
-        val rc = 1.0f / (2.0f * Math.PI.toFloat() * seekBarCutoff)
-        val alpha = dt / (rc + dt)
-
-        lowPassPrevSample += alpha * (sample - lowPassPrevSample)
-        return lowPassPrevSample.toInt()
-    }
-    fun setMetronomeBoolean(isItOn: Boolean){
-        isMetronomeOn = isItOn;
-    }
-    fun unloadBackingTrackIntoMemory() {
-        cachedBackingTrackSamples = null
-        backingTrackIndex = 0
-    }
-    fun loadBackingTrackIntoMemory(context: Context, uri: Uri) {
-        // Use android.media.MediaExtractor to decode the entire file into a ShortArray buffer once
-        val extractor = MediaExtractor()
-        try {
-            extractor.setDataSource(context, uri, null)
-            var trackIndex = -1
-            var format: MediaFormat? = null
-            for (i in 0 until extractor.trackCount) {
-                format = extractor.getTrackFormat(i)
-                if (format.getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true) {
-                    trackIndex = i
-                    break
+        fun loadBackingTrackIntoMemory(context: Context, uri: Uri) {
+            // Use android.media.MediaExtractor to decode the entire file into a ShortArray buffer once
+            val extractor = MediaExtractor()
+            try {
+                extractor.setDataSource(context, uri, null)
+                var trackIndex = -1
+                var format: MediaFormat? = null
+                for (i in 0 until extractor.trackCount) {
+                    format = extractor.getTrackFormat(i)
+                    if (format.getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true) {
+                        trackIndex = i
+                        break
+                    }
                 }
-            }
-            if (trackIndex >= 0 && format != null) {
-                extractor.selectTrack(trackIndex)
+                if (trackIndex >= 0 && format != null) {
+                    extractor.selectTrack(trackIndex)
 
-                // Force target sample rate to match pipeline (44100) to prevent speed mismatch
-                format.setInteger(MediaFormat.KEY_SAMPLE_RATE, sampleRate)
+                    // Force target sample rate to match pipeline (44100) to prevent speed mismatch
+                    format.setInteger(MediaFormat.KEY_SAMPLE_RATE, sampleRate)
 
-                val codec = MediaCodec.createDecoderByType(format.getString(MediaFormat.KEY_MIME)!!)
-                codec.configure(format, null, null, 0)
-                codec.start()
+                    val codec = MediaCodec.createDecoderByType(format.getString(MediaFormat.KEY_MIME)!!)
+                    codec.configure(format, null, null, 0)
+                    codec.start()
 
-                val byteList = mutableListOf<Byte>()
-                val bufferInfo = MediaCodec.BufferInfo()
-                var isEOS = false
+                    val byteList = mutableListOf<Byte>()
+                    val bufferInfo = MediaCodec.BufferInfo()
+                    var isEOS = false
 
-                while (!isEOS) {
-                    val inId = codec.dequeueInputBuffer(10000)
-                    if (inId >= 0) {
-                        val inBuf = codec.getInputBuffer(inId)
-                        if (inBuf != null) {
-                            val sampleSize = extractor.readSampleData(inBuf, 0)
-                            if (sampleSize < 0) {
-                                codec.queueInputBuffer(inId, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
-                                isEOS = true
-                            } else {
-                                codec.queueInputBuffer(inId, 0, sampleSize, extractor.sampleTime, 0)
-                                extractor.advance()
+                    while (!isEOS) {
+                        val inId = codec.dequeueInputBuffer(10000)
+                        if (inId >= 0) {
+                            val inBuf = codec.getInputBuffer(inId)
+                            if (inBuf != null) {
+                                val sampleSize = extractor.readSampleData(inBuf, 0)
+                                if (sampleSize < 0) {
+                                    codec.queueInputBuffer(inId, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                                    isEOS = true
+                                } else {
+                                    codec.queueInputBuffer(inId, 0, sampleSize, extractor.sampleTime, 0)
+                                    extractor.advance()
+                                }
                             }
                         }
-                    }
-                    val outId = codec.dequeueOutputBuffer(bufferInfo, 10000)
-                    if (outId >= 0) {
-                        val outBuf = codec.getOutputBuffer(outId)
-                        if (outBuf != null && bufferInfo.size > 0) {
-                            val chunk = ByteArray(bufferInfo.size)
-                            outBuf.get(chunk)
-                            byteList.addAll(chunk.toList())
-                            outBuf.clear()
+                        val outId = codec.dequeueOutputBuffer(bufferInfo, 10000)
+                        if (outId >= 0) {
+                            val outBuf = codec.getOutputBuffer(outId)
+                            if (outBuf != null && bufferInfo.size > 0) {
+                                val chunk = ByteArray(bufferInfo.size)
+                                outBuf.get(chunk)
+                                byteList.addAll(chunk.toList())
+                                outBuf.clear()
+                            }
+                            codec.releaseOutputBuffer(outId, false)
                         }
-                        codec.releaseOutputBuffer(outId, false)
                     }
-                }
-                codec.stop()
-                codec.release()
-                extractor.release()
+                    codec.stop()
+                    codec.release()
+                    extractor.release()
 
-                // Convert raw PCM bytes to shorts
-                val shorts = ShortArray(byteList.size / 2)
-                java.nio.ByteBuffer.wrap(byteList.toByteArray())
-                    .order(java.nio.ByteOrder.LITTLE_ENDIAN)
-                    .asShortBuffer()
-                    .get(shorts)
+                    // Convert raw PCM bytes to shorts
+                    val shorts = ShortArray(byteList.size / 2)
+                    java.nio.ByteBuffer.wrap(byteList.toByteArray())
+                        .order(java.nio.ByteOrder.LITTLE_ENDIAN)
+                        .asShortBuffer()
+                        .get(shorts)
 
 
-                // Find out how many channels the file actually has from the track format
-                val channelCount = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+                    // Find out how many channels the file actually has from the track format
+                    val channelCount = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
 
 // Downmix to mono if it's stereo so it fits your mono pipeline cleanly
-                cachedBackingTrackSamples = if (channelCount == 2) {
-                    ShortArray(shorts.size / 2).also { mono ->
-                        for (i in mono.indices) {
-                            val left = shorts[i * 2].toInt()
-                            val right = shorts[i * 2 + 1].toInt()
-                            mono[i] = ((left + right) / 2).toShort()
+                    cachedBackingTrackSamples = if (channelCount == 2) {
+                        ShortArray(shorts.size / 2).also { mono ->
+                            for (i in mono.indices) {
+                                val left = shorts[i * 2].toInt()
+                                val right = shorts[i * 2 + 1].toInt()
+                                mono[i] = ((left + right) / 2).toShort()
+                            }
                         }
+                    } else {
+                        shorts
                     }
-                } else {
-                    shorts
+                    backingTrackIndex = 0
+
                 }
-                backingTrackIndex = 0
-
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
         }
-    }
-    private fun createNotification(): Notification {
-        val channelId = "guitar_live_channel"
-        val channel = NotificationChannel(channelId, "Live Guitar Service", NotificationManager.IMPORTANCE_LOW)
-        getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
-        return NotificationCompat.Builder(this, channelId)
-            .setContentTitle("Listen To My Guitar Live")
-            .setContentText("Audio monitoring active in background")
-            .setSmallIcon(android.R.drawable.ic_btn_speak_now)
-            .build()
+        fun applyLimiter(sample: Int): Int {
+            val absValue = kotlin.math.abs(sample)
+            if (absValue <= threshold) {
+                return sample
+            }
+            // Simple compression curve above the threshold
+            val excess = absValue - threshold
+            val compressedExcess = excess * ratio // Ratio adjustment above threshold
+            val limited = threshold + compressedExcess.toInt()
+            return if (sample < 0) -limited.coerceAtMost(ceiling) else limited.coerceAtMost(ceiling)
+        }
+        private fun findUsbAudioDevice(audioManager: AudioManager): AudioDeviceInfo? {
+            val devices = audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)
+            for (device in devices) {
+                if (device.type == AudioDeviceInfo.TYPE_USB_DEVICE || device.type == AudioDeviceInfo.TYPE_USB_HEADSET) {
+                    return device
+                }
+            }
+            return null
+        }
+        fun createWavOutputStream(context: Context, fileName: String): Pair<Uri?, OutputStream?> {
+            val contentValues = ContentValues().apply {
+                put(MediaStore.Audio.Media.DISPLAY_NAME, fileName)
+                put(MediaStore.Audio.Media.MIME_TYPE, "audio/wav")
+                put(MediaStore.Audio.Media.RELATIVE_PATH, "${Environment.DIRECTORY_MUSIC}/ListenToMyGuitarLive")
+            }
+
+            val resolver = context.contentResolver
+            val audioCollection = MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+
+            val uri: Uri? = resolver.insert(audioCollection, contentValues)
+            val outputStream: OutputStream? = uri?.let { resolver.openOutputStream(it) }
+
+            return Pair(uri, outputStream)
+        }
+        fun setBMP(bpm2: Int){
+            bpm = bpm2
+        }
+        private var lowPassPrevSample = 0.0F
+        fun applyLowPass(sample: Int): Int {
+            val dt = 1.0f / sampleRate
+            val rc = 1.0f / (2.0f * Math.PI.toFloat() * seekBarCutoff)
+            val alpha = dt / (rc + dt)
+
+            lowPassPrevSample += alpha * (sample - lowPassPrevSample)
+            return lowPassPrevSample.toInt()
+        }
+        fun setMetronomeBoolean(isItOn: Boolean){
+            isMetronomeOn = isItOn;
+        }
+        fun unloadBackingTrackIntoMemory() {
+            cachedBackingTrackSamples = null
+            backingTrackIndex = 0
+        }
+
+
     }
 
-    override fun onBind(intent: Intent?): IBinder? = null
 
     fun startAudioPipeline() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
@@ -402,17 +396,28 @@ class AudioService : Service() {
                             shortBuffer[i] = mixedSample.coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
 
                             // 5. Store mixed guitar + backing track into recording stream (excluding metronome)
+
                             if (isRecording) {
-                                var recordedSample = (guitarSample + backingSample)
-                                if(useLowpass){
+                                var recordedSample = if (recordJustGuitar) {
+                                    guitarSample
+                                } else {
+                                    guitarSample + backingSample
+                                }
+
+                                if (useLowpass) {
                                     recordedSample = applyLowPass(recordedSample)
                                 }
-                                if(useLimiter){
+                                if (useLimiter) {
                                     recordedSample = applyLimiter(recordedSample)
                                 }
-                                var recordedSampleShort =  recordedSample.coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
-                                val byteEnc = java.nio.ByteBuffer.allocate(2).order(java.nio.ByteOrder.LITTLE_ENDIAN).putShort(recordedSampleShort).array()
-                                recordingOutputStream?.write(byteEnc)
+
+                                val recordedSampleShort = recordedSample.coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
+
+                                // Write directly using bit shifts instead of allocating a ByteBuffer every frame
+                                byteArray[0] = recordedSampleShort.toByte()
+                                byteArray[1] = (recordedSampleShort.toInt() ushr 8).toByte()
+
+                                recordingOutputStream?.write(byteArray, 0, 2)
                                 recordedDataLen += 2
                             }
                         }
@@ -447,6 +452,51 @@ class AudioService : Service() {
         audioThread?.join(500)
         audioThread = null
     }
+
+
+    fun stopRecordingSession() {
+        isRecording = false
+        try {
+            recordingOutputStream?.flush()
+            recordingOutputStream?.close()
+            recordingOutputStream = null
+
+            // Write final WAV header with correct file sizes via MediaStore Uri
+            currentWavUri?.let { uri ->
+                writeWavHeaderToUri(uri, sampleRate, 1, 16, recordedDataLen)
+
+            }
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        stopSelf()
+    }
+    override fun onCreate() {
+        super.onCreate()
+        instance = this
+        startAudioPipeline()
+    }
+    override fun onDestroy() {
+        super.onDestroy()
+        stopAudioPipeline()
+        instance = null
+        isRunning = false
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        startForeground(1, createNotification())
+        if (!isRunning) {
+            isRunning = true
+        }
+        return START_STICKY
+    }
+
+
 
     private fun writeWavHeaderToUri(uri: Uri, sampleRate: Int, channels: Int, bitRate: Int, totalAudioLen: Long) {
         val totalDataLen = totalAudioLen + 36
@@ -524,45 +574,19 @@ class AudioService : Service() {
         }
     }
 
-    fun stopRecordingSession() {
-        isRecording = false
-        try {
-            recordingOutputStream?.flush()
-            recordingOutputStream?.close()
-            recordingOutputStream = null
-
-            // Write final WAV header with correct file sizes via MediaStore Uri
-            currentWavUri?.let { uri ->
-                writeWavHeaderToUri(uri, sampleRate, 1, 16, recordedDataLen)
-
-            }
-
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+    private fun createNotification(): Notification {
+        val channelId = "guitar_live_channel"
+        val channel = NotificationChannel(channelId, "Live Guitar Service", NotificationManager.IMPORTANCE_LOW)
+        getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+        return NotificationCompat.Builder(this, channelId)
+            .setContentTitle("Listen To My Guitar Live")
+            .setContentText("Audio monitoring active in background")
+            .setSmallIcon(android.R.drawable.ic_btn_speak_now)
+            .build()
     }
-    fun createWavOutputStream(context: Context, fileName: String): Pair<Uri?, OutputStream?> {
-        val contentValues = ContentValues().apply {
-            put(MediaStore.Audio.Media.DISPLAY_NAME, fileName)
-            put(MediaStore.Audio.Media.MIME_TYPE, "audio/wav")
-            put(MediaStore.Audio.Media.RELATIVE_PATH, "${Environment.DIRECTORY_MUSIC}/ListenToMyGuitarLive")
-        }
 
-        val resolver = context.contentResolver
-        val audioCollection = MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+    override fun onBind(intent: Intent?): IBinder? = null
 
-        val uri: Uri? = resolver.insert(audioCollection, contentValues)
-        val outputStream: OutputStream? = uri?.let { resolver.openOutputStream(it) }
 
-        return Pair(uri, outputStream)
-    }
-    private fun findUsbAudioDevice(audioManager: AudioManager): AudioDeviceInfo? {
-        val devices = audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)
-        for (device in devices) {
-            if (device.type == AudioDeviceInfo.TYPE_USB_DEVICE || device.type == AudioDeviceInfo.TYPE_USB_HEADSET) {
-                return device
-            }
-        }
-        return null
-    }
+
 }

@@ -5,6 +5,8 @@ import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.CheckBox
+import android.widget.CompoundButton
 import android.widget.SeekBar
 import android.widget.Switch
 import kotlin.math.roundToInt
@@ -28,7 +30,7 @@ class VolumeSettingsFragment : Fragment() {
 
         seekBarGuitar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                AudioService.instance?.guitarVolume = progress / 100.0f
+                AudioService.guitarVolume = progress / 100.0f
             }
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
@@ -36,7 +38,7 @@ class VolumeSettingsFragment : Fragment() {
 
         seekBarBacking.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                AudioService.instance?.backingVolume = progress / 100.0f
+                AudioService.backingVolume = progress / 100.0f
             }
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
@@ -89,7 +91,10 @@ class VolumeSettingsFragment : Fragment() {
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
 
-
+        val checkBoxRecordJustGuitar = view.findViewById<CheckBox>(R.id.checkboxRecordJustGuitar)
+        checkBoxRecordJustGuitar.setOnCheckedChangeListener{ _, isChecked ->
+            AudioService.recordJustGuitar = isChecked
+        }
 
     }
 

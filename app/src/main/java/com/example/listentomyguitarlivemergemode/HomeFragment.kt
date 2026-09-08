@@ -23,6 +23,10 @@ import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
 import android.media.AudioManager
 import android.media.AudioDeviceInfo
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class HomeFragment : Fragment() {
     private val RECORD_AUDIO_PERMISSION_CODE = 101
@@ -61,7 +65,7 @@ class HomeFragment : Fragment() {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 bpm = progress + 40 // Range: 40 to 200 BPM
                 tvBpmLabel.text = "Metronome Tempo (BPM): $bpm"
-                AudioService.instance?.setBMP(bpm)
+                AudioService.setBMP(bpm)
             }
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
@@ -69,14 +73,14 @@ class HomeFragment : Fragment() {
 
         btnToggleMetronome.setOnCheckedChangeListener { _, isChecked ->
             isMetronomeOn = isChecked
-            AudioService.instance?.setMetronomeBoolean(isMetronomeOn);
+            AudioService.setMetronomeBoolean(isMetronomeOn);
         }
         btnToggleBackground.setOnCheckedChangeListener { _, isChecked ->
             if (!btnToggleBackground.isPressed) return@setOnCheckedChangeListener
             if(isChecked){
                 pickAudioFile.launch("audio/*")
             }else{
-                AudioService.instance?.unloadBackingTrackIntoMemory()
+                AudioService.unloadBackingTrackIntoMemory()
 
             }
         }
@@ -101,13 +105,13 @@ class HomeFragment : Fragment() {
 
         btnToggleRecord.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
-                tvRecordStatus.text = "Recording merged track..."
+                tvRecordStatus.text = "Recording track..."
                 btnToggleRecord.isEnabled = true
                 AudioService.instance?.startRecordingSession()
             } else {
                 AudioService.instance?.stopRecordingSession()
                 tvRecordStatus.text = "Saved to Music/ListenToMyGuitarLive!"
-                btnToggleRecord.isEnabled = false
+                btnToggleRecord.isEnabled = true
             }
         }
     }
@@ -117,7 +121,22 @@ class HomeFragment : Fragment() {
     ) { uri: Uri? ->
         if (uri != null) {
             // Use requireContext() instead of 'this' inside a Fragment
-            AudioService.instance?.loadBackingTrackIntoMemory(requireContext(), uri)
+
+
+            // Inside your Activity or Fragment
+            lifecycleScope.launch(Dispatchers.IO) {
+                // Heavy file reading and decoding happens here safely in the background
+                AudioService.loadBackingTrackIntoMemory(requireContext(), uri)
+
+                withContext(Dispatchers.Main) {
+                    // Switch back to the main thread only if you need to update UI elements (like a "Ready" label)
+
+                }
+            }
+
+
+
+
         }
     }
 

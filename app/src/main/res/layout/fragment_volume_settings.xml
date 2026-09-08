@@ -110,5 +110,11 @@
             android:max="100"
             android:progress="20" />
 
+        <CheckBox
+            android:id="@+id/checkboxRecordJustGuitar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Record Just Guitar" />
+
     </LinearLayout>
 </FrameLayout>

@@ -37,8 +37,8 @@
             android:id="@+id/btnToggleRecord"
             android:layout_width="match_parent"
             android:layout_height="50dp"
-            android:textOn="Stop Recording Guitar"
-            android:textOff="Record Guitar and Track"
+            android:textOn="Stop Recording"
+            android:textOff="Record"
             android:textSize="15sp"
             android:enabled="false"
             android:layout_marginBottom="24dp" />
