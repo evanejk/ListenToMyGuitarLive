@@ -48,7 +48,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Lowpass"
-            android:layout_marginTop="8dp"/>
+            android:layout_marginTop="8dp"
+            android:checked="true" />
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -68,7 +69,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Limiter"
-            android:layout_marginTop="8dp"/>
+            android:layout_marginTop="8dp"
+            android:checked="true" />
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -109,12 +111,22 @@
             android:layout_marginTop="8dp"
             android:max="100"
             android:progress="20" />
-
         <CheckBox
             android:id="@+id/checkboxRecordJustGuitar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Record Just Guitar" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Preset"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+        <Spinner
+            android:id="@+id/spinnerPresets"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:spinnerMode="dropdown" />
 
     </LinearLayout>
 </FrameLayout>

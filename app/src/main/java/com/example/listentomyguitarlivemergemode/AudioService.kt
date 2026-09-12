@@ -39,7 +39,8 @@ class AudioService : Service() {
     companion object {
         @Volatile
         private var isRunning = false
-        private var isRecording = false
+        @Volatile
+        var isRecording = false
         private var audioThread: Thread? = null
 
         private var recordingOutputStream: OutputStream? = null
@@ -63,7 +64,7 @@ class AudioService : Service() {
         @Volatile
         var isMetronomeOn = false
         @Volatile
-        var useLimiter = false
+        var useLimiter = true
         @Volatile
         var threshold = 28000
         @Volatile
@@ -73,7 +74,7 @@ class AudioService : Service() {
         @Volatile
         var seekBarCutoff: Int = 30
         @Volatile
-        var useLowpass = false
+        var useLowpass = true
         @Volatile
         var recordJustGuitar: Boolean = false
         @Volatile
@@ -208,14 +209,23 @@ class AudioService : Service() {
         fun setBMP(bpm2: Int){
             bpm = bpm2
         }
-        private var lowPassPrevSample = 0.0F
-        fun applyLowPass(sample: Int): Int {
+        private var lowPassPrevSample1 = 0.0F
+        fun applyLowPass1(sample: Int): Int {
             val dt = 1.0f / sampleRate
             val rc = 1.0f / (2.0f * Math.PI.toFloat() * seekBarCutoff)
             val alpha = dt / (rc + dt)
 
-            lowPassPrevSample += alpha * (sample - lowPassPrevSample)
-            return lowPassPrevSample.toInt()
+            lowPassPrevSample1 += alpha * (sample - lowPassPrevSample1)
+            return lowPassPrevSample1.toInt()
+        }
+        private var lowPassPrevSample2 = 0.0F
+        fun applyLowPass2(sample: Int): Int {
+            val dt = 1.0f / sampleRate
+            val rc = 1.0f / (2.0f * Math.PI.toFloat() * seekBarCutoff)
+            val alpha = dt / (rc + dt)
+
+            lowPassPrevSample2 += alpha * (sample - lowPassPrevSample2)
+            return lowPassPrevSample2.toInt()
         }
         fun setMetronomeBoolean(isItOn: Boolean){
             isMetronomeOn = isItOn;
@@ -376,7 +386,7 @@ class AudioService : Service() {
                             var metronomeSample = 0
                             if (isMetronomeOn && clickSampleRemaining > 0) {
                                 val progress = 1.0 - (clickSampleRemaining.toDouble() / clickDurationSamples.toDouble())
-                                metronomeSample = (sin(2.0 * Math.PI * clickFrequency * (clickDurationSamples - clickSampleRemaining) / sampleRate) * 5000.0 * progress).toInt()
+                                metronomeSample = (sin(2.0 * Math.PI * clickFrequency * (clickDurationSamples - clickSampleRemaining) / sampleRate) * 7000.0 * progress).toInt()
                                 clickSampleRemaining--
                             } else if (!isMetronomeOn) {
                                 clickSampleRemaining = 0
@@ -386,7 +396,7 @@ class AudioService : Service() {
                             var mixedSample = guitarSample + backingSample + metronomeSample
 
                             if(useLowpass){
-                                mixedSample = applyLowPass(mixedSample)
+                                mixedSample = applyLowPass1(mixedSample)
                             }
                             // 5. Apply limiter if toggled on
                             if (useLimiter) {
@@ -398,14 +408,17 @@ class AudioService : Service() {
                             // 5. Store mixed guitar + backing track into recording stream (excluding metronome)
 
                             if (isRecording) {
-                                var recordedSample = if (recordJustGuitar) {
-                                    guitarSample
+                                var recordedSample: Int
+                                if (recordJustGuitar) {
+                                    recordedSample = guitarSample
+                                } else if(backingSamples != null){
+                                    recordedSample = guitarSample + backingSample
                                 } else {
-                                    guitarSample + backingSample
+                                    recordedSample = guitarSample
                                 }
 
                                 if (useLowpass) {
-                                    recordedSample = applyLowPass(recordedSample)
+                                    recordedSample = applyLowPass2(recordedSample)
                                 }
                                 if (useLimiter) {
                                     recordedSample = applyLimiter(recordedSample)
@@ -448,6 +461,10 @@ class AudioService : Service() {
     }
 
     fun stopAudioPipeline() {
+        if(isRecording){
+            stopRecordingSession()
+        }
+        isRecording = false
         isRunning = false
         audioThread?.join(500)
         audioThread = null

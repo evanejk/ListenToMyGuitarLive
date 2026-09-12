@@ -74,8 +74,8 @@
             android:textOn="Metronome: On"
             android:textOff="Metronome: Off" />
 
-        <ToggleButton
-            android:id="@+id/btnToggleBackground"
+        <Button
+            android:id="@+id/btnBackground"
             android:layout_width="match_parent"
             android:layout_height="60dp"
             android:textOn="Stop Background Track"

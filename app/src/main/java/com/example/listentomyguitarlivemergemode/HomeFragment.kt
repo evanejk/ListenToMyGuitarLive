@@ -19,19 +19,20 @@ import android.content.pm.PackageManager
 import androidx.core.app.ActivityCompat
 import android.content.Context
 import android.content.IntentFilter
-import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
 import android.media.AudioManager
 import android.media.AudioDeviceInfo
+import android.widget.Button
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+
+
 class HomeFragment : Fragment() {
     private val RECORD_AUDIO_PERMISSION_CODE = 101
 
-    private var isRecording = false
 
     @Volatile
     private var bpm = 120
@@ -40,78 +41,91 @@ class HomeFragment : Fragment() {
     private var isMetronomeOn = false
 
     var tvDeviceStatus: TextView ? = null
+    var btnToggleAudio: ToggleButton ? = null
+    var btnToggleRecord: ToggleButton ? = null
+    var btnToggleMetronome: ToggleButton ? = null
+    var btnBackground: Button ? = null
+    var btnBackgroundBoolEnabler: Boolean = false
+    var tvRecordStatus: TextView ? = null
+
+    fun stopAudioNow() {
+        val serviceIntent = Intent(requireContext(), AudioService::class.java)
+        if (AudioService.isRecording) {
+            btnToggleRecord?.isEnabled = false
+            btnToggleRecord?.isChecked = false
+            tvRecordStatus?.text = "Will then save to Music/ListenToMyGuitarLive!"
+        }
+        AudioService.instance?.stopAudioPipeline()
+        requireContext().stopService(serviceIntent)
+        btnToggleMetronome?.isChecked = false
+        btnBackgroundBoolEnabler = false
+    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
         // Call findViewById on the 'view' parameter
         tvDeviceStatus = view.findViewById<TextView>(R.id.tvDeviceStatus)
-        val btnToggleAudio: ToggleButton = view.findViewById<ToggleButton>(R.id.btnToggleAudio)
-        val btnToggleRecord: ToggleButton = view.findViewById<ToggleButton>(R.id.btnToggleRecord)
+        btnToggleAudio = view.findViewById<ToggleButton>(R.id.btnToggleAudio)
+        btnToggleRecord = view.findViewById<ToggleButton>(R.id.btnToggleRecord)
         val seekBarBpm: SeekBar = view.findViewById<SeekBar>(R.id.seekBarBpm)
         val tvBpmLabel: TextView = view.findViewById<TextView>(R.id.tvBpmLabel)
-        val tvRecordStatus: TextView = view.findViewById<TextView>(R.id.tvRecordStatus)
-        val btnToggleMetronome: ToggleButton = view.findViewById<ToggleButton>(R.id.btnToggleMetronome)
-        val btnToggleBackground: ToggleButton = view.findViewById<ToggleButton>(R.id.btnToggleBackground)
+        tvRecordStatus = view.findViewById<TextView>(R.id.tvRecordStatus)
+        btnToggleMetronome = view.findViewById<ToggleButton>(R.id.btnToggleMetronome)
+        btnBackground = view.findViewById<ToggleButton>(R.id.btnBackground)
 
+        btnBackground?.text = "Start Background Track"
 
         checkPermissions()
         updateAudioDeviceList()
 
-        btnToggleBackground.isEnabled = false
 
         seekBarBpm.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            //override fun onProgressChanged(seekBar: SeekBar?, progress: Boolean, fromUser: Boolean) {} ai garbage line
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 bpm = progress + 40 // Range: 40 to 200 BPM
-                tvBpmLabel.text = "Metronome Tempo (BPM): $bpm"
+                var tempString = "Metronome Tempo (BPM): $bpm"
+                tvBpmLabel.text = tempString
                 AudioService.setBMP(bpm)
             }
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
 
-        btnToggleMetronome.setOnCheckedChangeListener { _, isChecked ->
+        btnToggleMetronome?.setOnCheckedChangeListener { _, isChecked ->
             isMetronomeOn = isChecked
-            AudioService.setMetronomeBoolean(isMetronomeOn);
+            AudioService.setMetronomeBoolean(isMetronomeOn)
         }
-        btnToggleBackground.setOnCheckedChangeListener { _, isChecked ->
-            if (!btnToggleBackground.isPressed) return@setOnCheckedChangeListener
-            if(isChecked){
+        btnBackground?.setOnClickListener {
+            if(btnBackgroundBoolEnabler){
                 pickAudioFile.launch("audio/*")
+                btnBackground?.text = "Stop Background Track"
             }else{
                 AudioService.unloadBackingTrackIntoMemory()
-
+                btnBackground?.text = "Start Background Track"
             }
+            btnBackgroundBoolEnabler = !btnBackgroundBoolEnabler;
         }
-        btnToggleAudio.setOnCheckedChangeListener { _, isChecked ->
-            val serviceIntent = Intent(requireContext(), AudioService::class.java)
+        btnToggleAudio?.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
+                val serviceIntent = Intent(requireContext(), AudioService::class.java)
                 ContextCompat.startForegroundService(requireContext(),serviceIntent)
-                btnToggleRecord.isEnabled = true
-                btnToggleBackground.isEnabled = true
+                btnToggleRecord?.isEnabled = true
+                btnBackgroundBoolEnabler = true
 
             } else {
-                if (isRecording) {
-                    btnToggleRecord.isChecked = false
-                }
-                AudioService.instance?.stopAudioPipeline()
-                requireContext().stopService(serviceIntent)
-                btnToggleRecord.isEnabled = false
-                btnToggleMetronome.isChecked = false
-                btnToggleBackground.isEnabled = false
+                stopAudioNow()
             }
         }
 
-        btnToggleRecord.setOnCheckedChangeListener { _, isChecked ->
+        btnToggleRecord?.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
-                tvRecordStatus.text = "Recording track..."
-                btnToggleRecord.isEnabled = true
+                tvRecordStatus?.text = "Recording track..."
+                btnToggleRecord?.isEnabled = true
                 AudioService.instance?.startRecordingSession()
             } else {
+                btnToggleRecord?.isEnabled = false
                 AudioService.instance?.stopRecordingSession()
-                tvRecordStatus.text = "Saved to Music/ListenToMyGuitarLive!"
-                btnToggleRecord.isEnabled = true
+                tvRecordStatus?.text = "Saved to Music/ListenToMyGuitarLive!"
             }
         }
     }
@@ -133,10 +147,6 @@ class HomeFragment : Fragment() {
 
                 }
             }
-
-
-
-
         }
     }
 
@@ -191,7 +201,8 @@ class HomeFragment : Fragment() {
                 }
                 UsbManager.ACTION_USB_DEVICE_DETACHED -> {
                   //  val device: UsbDevice? = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE)
-                    updateAudioDeviceList();
+                    updateAudioDeviceList()
+                    stopAudioNow()
                 }
             }
         }
