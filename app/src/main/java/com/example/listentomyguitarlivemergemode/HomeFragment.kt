@@ -24,6 +24,7 @@ import android.media.AudioManager
 import android.media.AudioDeviceInfo
 import android.widget.Button
 import androidx.lifecycle.lifecycleScope
+import com.example.listentomyguitarlivemergemode.AudioService.Companion.cachedBackingTrackSamples
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -61,6 +62,15 @@ class HomeFragment : Fragment() {
         btnBackgroundBoolEnabler = false
     }
 
+    override fun onViewStateRestored(savedInstanceState: Bundle?) {
+        super.onViewStateRestored(savedInstanceState)
+
+        if(cachedBackingTrackSamples == null){
+            btnBackground?.text = "Start Background Track"
+        }else{
+            btnBackground?.text = "Stop Background Track"
+        }
+    }
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
@@ -74,7 +84,11 @@ class HomeFragment : Fragment() {
         btnToggleMetronome = view.findViewById<ToggleButton>(R.id.btnToggleMetronome)
         btnBackground = view.findViewById<ToggleButton>(R.id.btnBackground)
 
-        btnBackground?.text = "Start Background Track"
+        if(cachedBackingTrackSamples == null){
+            btnBackground?.text = "Start Background Track"
+        }else{
+            btnBackground?.text = "Stop Background Track"
+        }
 
         checkPermissions()
         updateAudioDeviceList()
@@ -96,7 +110,7 @@ class HomeFragment : Fragment() {
             AudioService.setMetronomeBoolean(isMetronomeOn)
         }
         btnBackground?.setOnClickListener {
-            if(btnBackgroundBoolEnabler){
+            if(btnBackgroundBoolEnabler && (cachedBackingTrackSamples == null)){
                 pickAudioFile.launch("audio/*")
                 btnBackground?.text = "Stop Background Track"
             }else{
@@ -120,10 +134,8 @@ class HomeFragment : Fragment() {
         btnToggleRecord?.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
                 tvRecordStatus?.text = "Recording track..."
-                btnToggleRecord?.isEnabled = true
                 AudioService.instance?.startRecordingSession()
             } else {
-                btnToggleRecord?.isEnabled = false
                 AudioService.instance?.stopRecordingSession()
                 tvRecordStatus?.text = "Saved to Music/ListenToMyGuitarLive!"
             }
